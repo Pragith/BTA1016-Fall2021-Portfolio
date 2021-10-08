@@ -10,6 +10,7 @@ Route:
 from flask import Flask, request
 import pandas as pd
 import json
+import requests
 
 app = Flask(__name__)
 
@@ -218,4 +219,47 @@ def update_item(id):
 ##################
 
 
-app.run(debug=True, port=8000)
+#### FINANCE API ####
+# Alphavantage API key - TWWPBFUC9XGBUNTO, B4P3O1SABUZLB7RP
+@app.route('/projects/finance/stock/<function>', methods=['GET'])
+def company_info(function='OVERVIEW'):
+    # http://127.0.0.1:8000/projects/finance/company_info?symbol=FB
+    # http://127.0.0.1:8000/projects/finance/company_info?symbol=FB,AAPL,IBM
+    # http://127.0.0.1:8000/projects/finance/company_info?symbol=FB,AAPL,IBM&api_key=12123123
+
+    # Get the API key from the URL parameter 'api_key'
+    api_key = request.args.get('api_key')
+
+    # Fetch one or more comma separated stock symbols from the URL parameter 'symbol'
+    symbols = request.args.get('symbol')
+
+    # Split the symbols by comma and create a list of symbols from it
+    symbols = symbols.split(',')
+
+    # For each symbol, query the Alphavantage API and store the response in a response list
+    result = []
+    for symbol in symbols:
+        response = requests.get(f'https://www.alphavantage.co/query?function={function}&symbol={symbol}&apikey={api_key}&interval=60min')
+        jsonResponse = json.loads(response.text)
+        result.append(jsonResponse)
+
+    # Store the final result as a Pandas dataframe and then export it to Excel under the 'db' folder with the filename 'stock.xlsx'
+    df = pd.DataFrame(result)
+    df.to_excel('db/stock.xlsx', index=False)
+
+    # Return the response list
+    return { 'final_result': result }
+
+##################
+
+#### HTTPBIN PRACTICE ####
+@app.route('/projects/httpbin/get')
+def httpbin_get_view():
+    response = requests.get(f'http://httpbin.org/get?course=BTA1016')
+    jsonResponse = json.loads(response.text)
+
+    return jsonResponse
+
+##########################
+
+app.run(host='0.0.0.0', debug=True, port=8000)
